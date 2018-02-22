@@ -1,14 +1,17 @@
+''' Python Script for Oculus '''
 import os
-import cv2
 import time
 import argparse
-import numpy as np
-import tensorflow as tf
 
 from queue import Queue
 from threading import Thread
-from utils.app_utils import FPS, WebcamVideoStream, draw_boxes_and_labels
+from utils.app_utils import FPS, draw_boxes_and_labels
+# from utils.app_utils import WebcamVideoStream  # for WebcamVideoStream
 from object_detection.utils import label_map_util
+
+import numpy as np
+import cv2
+import tensorflow as tf
 
 # to obtain curent working directory
 CWD_PATH = os.getcwd()
@@ -29,6 +32,17 @@ label_map = label_map_util.load_labelmap(PATH_TO_LABELS)
 categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=NUM_CLASSES,
                                                             use_display_name=True)
 category_index = label_map_util.create_category_index(categories)
+
+
+def argsparser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source', dest='video_source', type=int,
+                        default=0, help='Device index of the camera.')
+    parser.add_argument('--width', dest='width', type=int,
+                        default=640, help='Width of the frames in the video stream.')
+    parser.add_argument('--height', dest='height', type=int,
+                        default=480, help='Height of the frames in the video stream.')
+    return parser.parse_args()
 
 
 def detect_objects(image_np, sess, detection_graph):
@@ -85,14 +99,7 @@ def worker(input_q, output_q):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-src', '--source', dest='video_source', type=int,
-                        default=0, help='Device index of the camera.')
-    parser.add_argument('-wd', '--width', dest='width', type=int,
-                        default=1024, help='Width of the frames in the video stream.')
-    parser.add_argument('-ht', '--height', dest='height', type=int,
-                        default=768, help='Height of the frames in the video stream.')
-    args = parser.parse_args()
+    args = argsparser()
 
     # Queueing is used to dramaticallty improve framerates
     input_q = Queue(5)  # fps is better if queue is higher but then more lags
@@ -111,6 +118,8 @@ if __name__ == '__main__':
 
     while True:
         ret, frame = video_capture.read()
+        frame = cv2.flip(frame, 1)  # to flip image on coorect orientation
+        frame = cv2.resize(frame, (args.width, args.height))
         # print(type(frame))
         input_q.put(frame)
 
