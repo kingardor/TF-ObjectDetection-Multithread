@@ -83,7 +83,7 @@ def detect_objects(image_np, sess, detection_graph):
     return dict(rect_points=rect_points, class_names=class_names, class_colors=class_colors)
 
 
-def worker(input_q, output_q):
+def detect(ob_input_q, ob_output_q):
     # Load a (frozen) Tensorflow model into memory.
     detection_graph = tf.Graph()
     with detection_graph.as_default():
@@ -95,26 +95,49 @@ def worker(input_q, output_q):
 
         sess = tf.Session(graph=detection_graph)
 
-    fps = FPS().start()
     while True:
-        fps.update()
-        frame = input_q.get()
+        frame = ob_input_q.get()
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        output_q.put(detect_objects(frame_rgb, sess, detection_graph))
+        ob_output_q.put(detect_objects(frame_rgb, sess, detection_graph))
 
-    fps.stop()
     sess.close()
+
+
+def edge(ed_input_q, ed_output_q):
+    while True:
+        img = ed_input_q.get()
+        # load the image, convert it to grayscale, and blur it slightly
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+
+        # apply Canny edge detection using a wide threshold, tight
+        # threshold, and automatically determined threshold
+        wide = cv2.Canny(blurred, 10, 200)
+        ed_output_q.put(wide)
 
 
 if __name__ == '__main__':
     args = argsparser()
+
     # Queueing is used to dramaticallty improve framerates
-    input_q = Queue(5)  # fps is better if queue is higher but then more lags
-    output_q = Queue()
+    # Queue for Object Detection
+
+    # Queue for Edge Detection
+    ed_input_q = Queue(5)
+    # fps is better if queue is higher but then more lags
+    ed_output_q = Queue()
     for i in range(1):
-        t = Thread(target=worker, args=(input_q, output_q))
-        t.daemon = True
-        t.start()
+        ed_t = Thread(target=edge, args=(ed_input_q, ed_output_q))
+        ed_t.daemon = True
+        ed_t.start()
+
+    ob_input_q = Queue(5)
+    # fps is better if queue is higher but then more lags
+    ob_output_q = Queue()
+    for i in range(1):
+        ob_t = Thread(target=detect, args=(ob_input_q, ob_output_q))
+        ob_t.daemon = True
+        ob_t.start()
 
     # video_capture = WebcamVideoStream(src=args.video_source,
     #                                  width=args.width,
@@ -128,15 +151,22 @@ if __name__ == '__main__':
         frame = cv2.flip(frame, 1)  # to flip image on coorect orientation
         frame = cv2.resize(frame, (args.width, args.height))
         # print(type(frame))
-        input_q.put(frame)
+        ed_input_q.put(frame)
+        ob_input_q.put(frame)
 
-        t = time.time()
+        #ob_t = time.time()
 
-        if output_q.empty():
+        if ed_output_q.empty():
+            pass  # fill up Queue
+        else:
+            img = ed_output_q.get()
+            cv2.imshow('Edge', img)
+
+        if ob_output_q.empty():
             pass  # fill up queue
         else:
             font = cv2.FONT_HERSHEY_SIMPLEX
-            data = output_q.get()
+            data = ob_output_q.get()
             rec_points = data['rect_points']
             class_names = data['class_names']
             class_colors = data['class_colors']
@@ -152,7 +182,8 @@ if __name__ == '__main__':
                 cv2.putText(frame, name[0], (int(point['xmin'] * args.width),
                                              int(point['ymin'] * args.height)),
                             font, 0.3, (0, 0, 0), 1)
-            cv2.imshow('Video', frame)
+            cv2.imshow('Object', frame)
+
         fps.update()
 
         # Exit if input key is 'q'
