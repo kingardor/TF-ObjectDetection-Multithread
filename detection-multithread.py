@@ -1,4 +1,12 @@
-''' Python Script for Oculus '''
+'''  Python Script for Oculus
+
+Usage: python3 detection-multithread.py
+Flag list: --width - to set Width
+           --height - to set Height
+           --source - to set source of input
+
+Press 'q' to exit
+'''
 import os
 import time
 import argparse
@@ -36,7 +44,7 @@ category_index = label_map_util.create_category_index(categories)
 
 def argsparser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', dest='video_source', type=int,
+    parser.add_argument('--source', dest='source', type=int,
                         default=0, help='Device index of the camera.')
     parser.add_argument('--width', dest='width', type=int,
                         default=640, help='Width of the frames in the video stream.')
@@ -100,7 +108,6 @@ def worker(input_q, output_q):
 
 if __name__ == '__main__':
     args = argsparser()
-
     # Queueing is used to dramaticallty improve framerates
     input_q = Queue(5)  # fps is better if queue is higher but then more lags
     output_q = Queue()
@@ -113,7 +120,7 @@ if __name__ == '__main__':
     #                                  width=args.width,
     #                                  height=args.height).start()
 
-    video_capture = cv2.VideoCapture(0)
+    video_capture = cv2.VideoCapture(args.source)
     fps = FPS().start()
 
     while True:
@@ -146,7 +153,6 @@ if __name__ == '__main__':
                                              int(point['ymin'] * args.height)),
                             font, 0.3, (0, 0, 0), 1)
             cv2.imshow('Video', frame)
-
         fps.update()
 
         # Exit if input key is 'q'
