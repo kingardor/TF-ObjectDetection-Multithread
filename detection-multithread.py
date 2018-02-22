@@ -8,7 +8,6 @@ Flag list: --width - to set Width
 Press 'q' to exit
 '''
 import os
-import time
 import argparse
 
 from queue import Queue
@@ -43,6 +42,7 @@ category_index = label_map_util.create_category_index(categories)
 
 
 def argsparser():
+    ''' argsparser() adds argument functionality for command line. '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', dest='source', type=int,
                         default=0, help='Device index of the camera.')
@@ -54,6 +54,7 @@ def argsparser():
 
 
 def detect_objects(image_np, sess, detection_graph):
+    '''detect_objects is used to find objects in the frame and draw a box'''
     # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
     image_np_expanded = np.expand_dims(image_np, axis=0)
     image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
@@ -83,7 +84,8 @@ def detect_objects(image_np, sess, detection_graph):
     return dict(rect_points=rect_points, class_names=class_names, class_colors=class_colors)
 
 
-def detect(ob_input_q, ob_output_q):
+def detect(input_q, output_q):
+    '''Isolated function to enable threading of object detection'''
     # Load a (frozen) Tensorflow model into memory.
     detection_graph = tf.Graph()
     with detection_graph.as_default():
@@ -96,24 +98,25 @@ def detect(ob_input_q, ob_output_q):
         sess = tf.Session(graph=detection_graph)
 
     while True:
-        frame = ob_input_q.get()
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        ob_output_q.put(detect_objects(frame_rgb, sess, detection_graph))
+        fram = input_q.get()
+        frame_rgb = cv2.cvtColor(fram, cv2.COLOR_BGR2RGB)
+        output_q.put(detect_objects(frame_rgb, sess, detection_graph))
 
     sess.close()
 
 
-def edge(ed_input_q, ed_output_q):
+def edge(input_q, output_q):
+    '''Isolated function to enable threading of edge detection'''
     while True:
-        img = ed_input_q.get()
+        image = input_q.get()
         # load the image, convert it to grayscale, and blur it slightly
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
         # apply Canny edge detection using a wide threshold, tight
         # threshold, and automatically determined threshold
         wide = cv2.Canny(blurred, 10, 200)
-        ed_output_q.put(wide)
+        output_q.put(wide)
 
 
 if __name__ == '__main__':
