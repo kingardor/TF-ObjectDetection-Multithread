@@ -102,13 +102,16 @@ if __name__ == '__main__':
         t.daemon = True
         t.start()
 
-    video_capture = WebcamVideoStream(src=args.video_source,
-                                      width=args.width,
-                                      height=args.height).start()
+    # video_capture = WebcamVideoStream(src=args.video_source,
+    #                                  width=args.width,
+    #                                  height=args.height).start()
+
+    video_capture = cv2.VideoCapture(0)
     fps = FPS().start()
 
     while True:
-        frame = video_capture.read()
+        ret, frame = video_capture.read()
+        # print(type(frame))
         input_q.put(frame)
 
         t = time.time()
@@ -122,13 +125,17 @@ if __name__ == '__main__':
             class_names = data['class_names']
             class_colors = data['class_colors']
             for point, name, color in zip(rec_points, class_names, class_colors):
-                cv2.rectangle(frame, (int(point['xmin'] * args.width), int(point['ymin'] * args.height)),
-                              (int(point['xmax'] * args.width), int(point['ymax'] * args.height)), color, 3)
-                cv2.rectangle(frame, (int(point['xmin'] * args.width), int(point['ymin'] * args.height)),
+                cv2.rectangle(frame, (int(point['xmin'] * args.width),
+                                      int(point['ymin'] * args.height)),
+                              (int(point['xmax'] * args.width),
+                               int(point['ymax'] * args.height)), color, 3)
+                cv2.rectangle(frame, (int(point['xmin'] * args.width),
+                                      int(point['ymin'] * args.height)),
                               (int(point['xmin'] * args.width) + len(name[0]) * 6,
                                int(point['ymin'] * args.height) - 10), color, -1, cv2.LINE_AA)
-                cv2.putText(frame, name[0], (int(point['xmin'] * args.width), int(point['ymin'] * args.height)), font,
-                            0.3, (0, 0, 0), 1)
+                cv2.putText(frame, name[0], (int(point['xmin'] * args.width),
+                                             int(point['ymin'] * args.height)),
+                            font, 0.3, (0, 0, 0), 1)
             cv2.imshow('Video', frame)
 
         fps.update()
@@ -141,5 +148,6 @@ if __name__ == '__main__':
     print('[INFO] elapsed time (total): {:.2f}'.format(fps.elapsed()))
     print('[INFO] approx. FPS: {:.2f}'.format(fps.fps()))
 
-    video_capture.stop()
+    # video_capture.stop() # if using WebcamVideoStream
+    video_capture.release()  # if using cv2.VideoCapture(0)
     cv2.destroyAllWindows()
