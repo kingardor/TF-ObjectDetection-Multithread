@@ -1,1 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
+# Swap files
+.*swp
+*.npy
+
+# Checkpoints
+.ipynb_checkpoints
+checkpoint
+ckpt/*/*.*
+ignore/
+
+# compressed files
+*.tar.gz
+
+*.pyc
+object_detection/**/*.pyc
+object_detection/*.ipynb
+
+#Mac
+object_detection/pythonw
+.DS_STORE
+
+#inference graphs
+object_detection/ssd_inception_v2_coco_11_06_2017/
